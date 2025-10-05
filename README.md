@@ -20,6 +20,7 @@ If you are new to ATAC seq data analysis, here is a table that tells you what ea
 
 
 An easy flowchart to keep in mind while starting ATAC seq analysis pre-processing:
+
 files → counts(.h5) ─┐
                      ├─> CreateChromatinAssay + fragments
 metadata(csv) ───────┘
