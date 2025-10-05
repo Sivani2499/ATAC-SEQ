@@ -4,3 +4,50 @@ Before beginning to analyse ATAC seq data, you should make sure that you have th
 (which is usually the per barcode metrics file) in the form of csv, and the fragments file (gz format).
 
 Once you have all this you can use the script that is uploaded to run the general ATAC seq workflow pipeline. Additional comments on the steps can be found within the R script itself.
+
+If you are new to ATAC seq data analysis, here is a table that tells you what each term means (some of the new functions in ATAC se)
+
+| Term                                                   | Simple meaning                                                                                                                                                                                                                             |
+| ------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **ChromatinAssay**                                     | A container in Seurat that stores all ATAC-seq information — the peaks (open DNA regions), fragment locations, and counts per cell. It’s the starting point for ATAC data analysis, similar to how “RNA Assay” holds gene expression data. |
+| **Nucleosome signal**                                  | Tells how strongly DNA fragments show nucleosome spacing patterns. Low values mean more open chromatin (better-quality nuclei). High values suggest over-digested or low-quality cells.                                                    |
+| **TSS enrichment**                                     | Measures how many reads fall near transcription start sites. High enrichment means active, well-captured cells with open promoters.                                                                                                        |
+| **Blacklist ratio**                                    | Fraction of reads mapping to “blacklisted” genomic regions known to cause noise (repeats, artefacts). Low is good.                                                                                                                         |
+| **FRiP (Fraction of Reads in Peaks)**                  | Shows what portion of all reads land inside true peaks (accessible DNA). High FRiP means cleaner data and better signal-to-noise.                                                                                                          |
+| **TF-IDF (Term Frequency–Inverse Document Frequency)** | A normalization borrowed from text mining. It down-weights common peaks and up-weights unique ones, making cells more comparable.                                                                                                          |
+| **SVD (Singular Value Decomposition)**                 | A mathematical method to reduce big matrices into a few main patterns. In ATAC analysis, it helps find major axes of variation.                                                                                                            |
+| **LSI (Latent Semantic Indexing)**                     | The lower-dimensional representation that comes out of SVD + TF-IDF. It summarizes how similar cells are based on accessibility patterns, ready for UMAP and clustering.                                                                   |
+
+
+An easy flowchart to keep in mind while starting ATAC seq analysis pre-processing:
+files → counts(.h5) ─┐
+                     ├─> CreateChromatinAssay + fragments
+metadata(csv) ───────┘
+          ↓
+CreateSeuratObject (ATAC)
+          ↓
+Add gene annotations (EnsDb → chr prefix)
+          ↓
+QC: NucleosomeSignal → TSSEnrichment → FRiP/blacklist
+          ↓
+Plots → choose thresholds → filter cells
+          ↓
+TF-IDF → FindTopFeatures → SVD (LSI)
+          ↓
+Check depth (drop LSI_1)
+          ↓
+UMAP → neighbors → clusters → DimPlot
+          ↓
+saveRDS
+
+🧬 Why do we create a ChromatinAssay?
+
+Think of it as building the “ATAC compartment” inside the Seurat object.
+Seurat can handle different data types (RNA, protein, ATAC, etc.), but each lives in its own assay slot.
+When you call:
+chrom_assay <- CreateChromatinAssay(counts = counts, fragments = "fragments.tsv.gz", ...)
+
+you’re telling Seurat:
+“Here are the open-chromatin counts and fragment positions — please package them neatly so downstream QC, TF-IDF, and LSI functions know where to look.”
+Without this step, Seurat wouldn’t understand where your ATAC data lives or how to calculate accessibility metrics.
+
