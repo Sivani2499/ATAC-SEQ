@@ -1,0 +1,111 @@
+🧬 Single-Cell ATAC-seq Data Processing and Integration with scRNA-seq
+Using Signac + Seurat for cell-type identification and peak-gene interpretation
+🧭 Overview
+
+This workflow walks through how to process and interpret single-cell ATAC-seq data, integrate it with a matching scRNA-seq dataset, and 
+explore which DNA regions (peaks) are more open in specific immune cell types.
+In simple words - This workflow takes ATAC-seq data (which tells us where DNA is open), links it to RNA data (which tells us what genes are active), and then 
+connects those open DNA regions to their nearby genes — so we can understand which parts of the genome are “unlocked” in each cell type.
+
+Everything is done in R using the Signac and Seurat packages.
+The goal:
+👉 identify cell types from ATAC-seq data
+👉 find which regions of DNA are open in each cell type
+👉 link those open regions to nearby genes (so we can understand what they might regulate)
+
+⚙️ Main steps in the workflow
+1️⃣ Load and explore the preprocessed ATAC-seq object
+
+We start by reading the Seurat object (x.seurat) containing peaks × cells (chromatin accessibility counts).
+
+DimPlot() is used to view clusters of cells on a UMAP plot.
+
+2️⃣ Compute gene activity scores
+
+ATAC-seq measures open chromatin, not gene expression.
+
+To make the data more interpretable, we estimate gene activity — basically how “open” each gene’s promoter/body region is.
+
+This is added as a new RNA assay in the Seurat object and normalized for visualization.
+
+🧠 Think of this as a rough “expression-like” score derived from ATAC data.
+
+3️⃣ Visualize canonical marker genes
+
+We plot marker genes (e.g., CD14, MS4A1, CD3D) on a UMAP using FeaturePlot() to see if the expected immune cell types show accessibility in the right places.
+This helps verify that our ATAC data makes biological sense.
+
+4️⃣ Integrate ATAC with matching scRNA-seq data
+
+We load a reference scRNA-seq dataset (with known cell type labels).
+
+Using FindTransferAnchors(), we find links (“anchors”) between RNA and ATAC cells based on shared patterns.
+
+TransferData() then transfers cell type labels from the RNA dataset onto the ATAC cells.
+
+Result: each ATAC cell now has a predicted cell type (e.g., CD4 Naive, CD14+ Monocyte, NK cell).
+
+5️⃣ Identify differentially accessible (DA) peaks
+
+We ask:
+
+Which DNA regions are more open in one cell type than another?
+
+Using FindMarkers() with a Wilcoxon test, we compare:
+
+ident.1 = "CD4 Naive"
+
+ident.2 = "CD14+ Monocytes"
+
+Each row in the result is a peak with:
+
+avg_log2FC → how much more open the region is
+
+positive values → open in ident.1 (CD4 Naive)
+
+negative values → open in ident.2 (CD14+ Monocytes)
+
+p_val_adj → statistical significance
+
+We then set thresholds (|log2FC| > 5 here) to focus on strongly cell-type-specific peaks.
+
+6️⃣ Link peaks to nearest genes
+
+The ClosestFeature() function finds the nearest gene to each peak, helping us connect open chromatin regions → possible target genes.
+
+Example:
+If a peak near IL1B is more open in monocytes, it likely regulates IL1B expression.
+
+7️⃣ Visualize accessibility with coverage plots
+
+CoveragePlot() shows how many reads fall along a genomic region — like a “mountain map” of openness.
+
+X-axis: genomic coordinates (bp)
+
+Y-axis: normalized read coverage (openness)
+
+Colored lines = cell types
+
+Shaded regions = highlighted peaks
+
+Blue arrows = nearby genes
+
+We used it to:
+
+visualize peaks near the CD4 gene (open in CD4 Naive cells)
+
+visualize peaks near the LYZ gene (open in CD14+ Monocytes)
+
+plot the top 5 differentially accessible regions overall
+
+8️⃣ Explore accessibility per cell type
+
+VlnPlot() shows how open a given peak is across different predicted cell types.
+
+FeaturePlot() shows where those open cells cluster in UMAP space.
+Together, these reveal which cell types truly drive each accessibility signal.
+
+9️⃣ Optional: interactive exploration
+
+The CoverageBrowser() function opens an interactive viewer, letting you zoom in on any gene or region to explore read coverage and peaks more flexibly.
+
